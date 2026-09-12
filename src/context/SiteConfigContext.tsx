@@ -176,8 +176,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   },
   team: DEFAULT_TEAM_MEMBERS,
   contact: {
-    whatsappNumber: '5511999999999',
-    whatsappDisplay: '(11) 99999-9999',
+    whatsappNumber: '5511998642424',
+    whatsappDisplay: '(11) 99864-2424',
     email: 'contato@brasillegal.imb.br',
     hours: 'Segunda a Sexta: 08h30 às 18h00 | Plantão de Análise aos Sábados',
     serviceRegion: 'Caieiras, Franco da Rocha, Francisco Morato, Mairiporã, Cajamar, Grande SP e Todo o Brasil',
@@ -298,7 +298,17 @@ export const SiteConfigProvider: React.FC<{ children: ReactNode }> = ({ children
           video: { ...DEFAULT_SITE_CONFIG.video, ...parsed.video },
           teamSection: { ...DEFAULT_SITE_CONFIG.teamSection, ...(parsed.teamSection || {}) },
           team: normalizeTeam(parsed.team),
-          contact: { ...DEFAULT_SITE_CONFIG.contact, ...parsed.contact },
+          contact: {
+            ...DEFAULT_SITE_CONFIG.contact,
+            ...parsed.contact,
+            // If the saved contact was the old placeholder (11) 99999-9999, update to current official number
+            ...(parsed.contact?.whatsappDisplay === '(11) 99999-9999' || parsed.contact?.whatsappNumber === '5511999999999'
+              ? {
+                  whatsappNumber: DEFAULT_SITE_CONFIG.contact.whatsappNumber,
+                  whatsappDisplay: DEFAULT_SITE_CONFIG.contact.whatsappDisplay,
+                }
+              : {}),
+          },
           regional: { ...DEFAULT_SITE_CONFIG.regional, ...parsed.regional },
           footer: { ...DEFAULT_SITE_CONFIG.footer, ...parsed.footer },
           github: { ...DEFAULT_GITHUB_CONFIG, ...(parsed.github || {}) },
