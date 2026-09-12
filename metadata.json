@@ -1,0 +1,6 @@
+{
+  "name": "BRASIL LEGAL — Regularização Imobiliária",
+  "description": "Plataforma de regularização imobiliária integrada combinando engenharia, jurídico e inteligência registral para destravar o valor e a liquidez do seu patrimônio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

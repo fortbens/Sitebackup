@@ -1,0 +1,49 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+  repository_dispatch:
+    types: [deploy_event]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar Dependências
+        run: npm ci || npm install
+
+      - name: Compilar Projeto (Vite Build)
+        run: npm run build
+
+      - name: Garantir .htaccess no diretório dist
+        run: |
+          cp public/.htaccess dist/.htaccess || true
+          cp .cpanel.yml dist/.cpanel.yml || true
+
+      # Opcional: Se desejar publicar automaticamente na Homehost via FTP,
+      # configure os Secrets no seu repositório GitHub:
+      # Settings > Secrets and variables > Actions:
+      # - FTP_SERVER (ex: ftp.seudominio.com.br)
+      # - FTP_USERNAME (seu usuário cPanel/Homehost)
+      # - FTP_PASSWORD (sua senha cPanel/FTP)
+      # 
+      # - name: Deploy FTP para Homehost
+      #   uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      #   with:
+      #     server: ${{ secrets.FTP_SERVER }}
+      #     username: ${{ secrets.FTP_USERNAME }}
+      #     password: ${{ secrets.FTP_PASSWORD }}
+      #     local-dir: ./dist/
+      #     server-dir: ./public_html/
