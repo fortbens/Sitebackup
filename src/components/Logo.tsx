@@ -3,7 +3,7 @@ import { useSiteConfig } from '../context/SiteConfigContext';
 
 interface LogoProps {
   variant?: 'color' | 'white' | 'dark-bg' | 'light' | 'dark';
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   showDescriptor?: boolean;
   className?: string;
 }
@@ -15,6 +15,7 @@ export const Logo: React.FC<LogoProps> = ({
   className = '',
 }) => {
   const { config } = useSiteConfig();
+  const [imageFailed, setImageFailed] = React.useState(false);
 
   // "white", "dark-bg", and "light" denote a logo placed on a dark background (needs Logo Claro)
   const isForDarkBackground = variant === 'white' || variant === 'dark-bg' || variant === 'light';
@@ -28,13 +29,14 @@ export const Logo: React.FC<LogoProps> = ({
 
   // Dimension presets
   const sizeMap = {
-    sm: { scale: 0.75, height: 38, imgHeight: 'h-8', textScale: 'text-xs' },
+    xs: { scale: 0.55, height: 26, imgHeight: 'h-6', textScale: 'text-[10px]' },
+    sm: { scale: 0.72, height: 34, imgHeight: 'h-7 sm:h-8', textScale: 'text-xs' },
     md: { scale: 1, height: 48, imgHeight: 'h-10', textScale: 'text-xs' },
     lg: { scale: 1.3, height: 60, imgHeight: 'h-12', textScale: 'text-sm' },
     xl: { scale: 1.6, height: 74, imgHeight: 'h-16', textScale: 'text-base' },
   };
 
-  const currentSize = sizeMap[size];
+  const currentSize = sizeMap[size] || sizeMap.md;
   const finalScale = currentSize.scale * (config.brand.logoScale || 1);
 
   // Determine which custom image to show based on background theme:
@@ -44,8 +46,8 @@ export const Logo: React.FC<LogoProps> = ({
     ? (config.brand.logoLightUrl || config.brand.customLogoUrl || config.brand.logoDarkUrl)
     : (config.brand.logoDarkUrl || config.brand.customLogoUrl || config.brand.logoLightUrl);
 
-  // If user configured a custom image logo in CMS and an image is available
-  if (config.brand.logoType === 'custom_image' && customImageSource) {
+  // If user configured a custom image logo in CMS and an image is available and hasn't failed
+  if (config.brand.logoType === 'custom_image' && customImageSource && !imageFailed) {
     return (
       <div className={`inline-flex flex-col select-none ${className}`}>
         <img
@@ -55,6 +57,8 @@ export const Logo: React.FC<LogoProps> = ({
           style={{
             maxHeight: `${currentSize.height * (config.brand.logoScale || 1)}px`,
           }}
+          onError={() => setImageFailed(true)}
+          referrerPolicy="no-referrer"
         />
         {shouldShowDescriptor && config.brand.descriptor && (
           <div

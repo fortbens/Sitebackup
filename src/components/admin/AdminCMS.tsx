@@ -45,6 +45,7 @@ import { getEmbedVideoUrl } from '../VideoSection';
 import { TeamManagerTab } from './TeamManagerTab';
 import { AdminProfileTab } from './AdminProfileTab';
 import { GitHubIntegrationTab } from './GitHubIntegrationTab';
+import { compressImage } from '../../utils/imageUtils';
 
 interface AdminCMSProps {
   onBackToSite: () => void;
@@ -248,35 +249,38 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToSite }) => {
   const countPropostas = leads.filter(l => l.status === 'proposta_enviada').length;
   const countConcluidos = leads.filter(l => l.status === 'concluido').length;
 
-  // Image Upload handler for Logo (Dark and Light)
-  const handleLogoFileUpload = (variant: 'dark' | 'light', e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image Upload handler for Logo (Dark and Light) with automatic compression & transparency preservation
+  const handleLogoFileUpload = async (variant: 'dark' | 'light', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('A imagem deve ter no máximo 2MB.');
-        return;
+    if (!file) return;
+
+    try {
+      const compressedDataUrl = await compressImage(file, {
+        maxWidth: 800,
+        maxHeight: 350,
+        quality: 0.9,
+        mimeType: 'image/png', // Keep transparency for logos
+      });
+
+      if (variant === 'dark') {
+        updateSection('brand', {
+          logoType: 'custom_image',
+          logoDarkUrl: compressedDataUrl,
+          customLogoUrl: compressedDataUrl,
+        });
+      } else {
+        updateSection('brand', {
+          logoType: 'custom_image',
+          logoLightUrl: compressedDataUrl,
+          customLogoUrl: config.brand.customLogoUrl || compressedDataUrl,
+        });
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          if (variant === 'dark') {
-            updateSection('brand', {
-              logoType: 'custom_image',
-              logoDarkUrl: result,
-              customLogoUrl: result,
-            });
-          } else {
-            updateSection('brand', {
-              logoType: 'custom_image',
-              logoLightUrl: result,
-              customLogoUrl: config.brand.customLogoUrl || result,
-            });
-          }
-          triggerSaveAlert();
-        }
-      };
-      reader.readAsDataURL(file);
+      triggerSaveAlert();
+    } catch (err: any) {
+      console.error('Falha ao processar logotipo:', err);
+      alert(err.message || 'Erro ao processar imagem do logotipo.');
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -1429,20 +1433,56 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToSite }) => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="showDescriptor"
-                    checked={config.brand.showDescriptor}
-                    onChange={(e) => {
-                      updateSection('brand', { showDescriptor: e.target.checked });
-                      triggerSaveAlert();
-                    }}
-                    className="w-4 h-4 rounded text-[#161C4D] focus:ring-0 cursor-pointer"
-                  />
-                  <label htmlFor="showDescriptor" className="text-xs font-semibold text-slate-800 cursor-pointer">
-                    Exibir descritor abaixo do logotipo no site
-                  </label>
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showLogoInHeader"
+                      checked={config.brand.showLogoInHeader !== false}
+                      onChange={(e) => {
+                        updateSection('brand', { showLogoInHeader: e.target.checked });
+                        triggerSaveAlert();
+                      }}
+                      className="w-4 h-4 rounded text-[#161C4D] focus:ring-0 cursor-pointer"
+                    />
+                    <label htmlFor="showLogoInHeader" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                      Exibir logotipo no Cabeçalho Principal (Topo do Site / Navbar)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showLogoInTopBar"
+                      checked={!!(config.topBar?.showLogo || config.brand?.showLogoInTopBar)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        updateSection('brand', { showLogoInTopBar: val });
+                        updateSection('topBar', { showLogo: val });
+                        triggerSaveAlert();
+                      }}
+                      className="w-4 h-4 rounded text-[#161C4D] focus:ring-0 cursor-pointer"
+                    />
+                    <label htmlFor="showLogoInTopBar" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                      Exibir mini logotipo na Barra Superior de Avisos (Faixa do Topo do Site)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="showDescriptor"
+                      checked={config.brand.showDescriptor}
+                      onChange={(e) => {
+                        updateSection('brand', { showDescriptor: e.target.checked });
+                        triggerSaveAlert();
+                      }}
+                      className="w-4 h-4 rounded text-[#161C4D] focus:ring-0 cursor-pointer"
+                    />
+                    <label htmlFor="showDescriptor" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                      Exibir descritor/slogan abaixo do logotipo no site
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -1817,7 +1857,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToSite }) => {
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1">Texto de Foco Regional</label>
                     <input
                       type="text"
@@ -1829,6 +1869,37 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToSite }) => {
                       className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white"
                     />
                   </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Texto do Plantão WhatsApp</label>
+                    <input
+                      type="text"
+                      value={config.topBar.plantaoText || ''}
+                      onChange={(e) => {
+                        updateSection('topBar', { plantaoText: e.target.value });
+                        triggerSaveAlert();
+                      }}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="topBarShowLogo"
+                    checked={!!(config.topBar?.showLogo || config.brand?.showLogoInTopBar)}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      updateSection('topBar', { showLogo: val });
+                      updateSection('brand', { showLogoInTopBar: val });
+                      triggerSaveAlert();
+                    }}
+                    className="w-4 h-4 rounded text-[#161C4D] focus:ring-0 cursor-pointer"
+                  />
+                  <label htmlFor="topBarShowLogo" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                    Exibir logotipo compacto na Barra Superior (faixa escura no topo do site)
+                  </label>
                 </div>
               </div>
 

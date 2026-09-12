@@ -123,6 +123,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     name: 'BRASIL LEGAL',
     descriptor: 'Regularização Imobiliária Integrada',
     showDescriptor: true,
+    showLogoInHeader: true,
+    showLogoInTopBar: false,
     logoType: 'vector_default',
     customLogoUrl: '',
     logoLightUrl: '',
@@ -142,6 +144,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     bodyFont: 'Plus Jakarta Sans',
   },
   topBar: {
+    enabled: true,
+    showLogo: false,
     badgeText: 'FOCO REGIONAL',
     announcementText: 'Atendimento Especializado CIMBAJU (Caieiras, Franco da Rocha, Fco. Morato, Mairiporã, Cajamar) & Estado de SP',
     plantaoText: 'Plantão Técnico WhatsApp',
@@ -252,6 +256,30 @@ const SiteConfigContext = createContext<SiteConfigContextType | undefined>(undef
 
 const STORAGE_KEY = 'brasil_legal_cms_config';
 
+const normalizeTeam = (raw: any): TeamMember[] => {
+  if (!raw) return DEFAULT_TEAM_MEMBERS;
+  if (Array.isArray(raw) && raw.length > 0) return raw;
+  if (typeof raw === 'object' && raw !== null) {
+    const list = Object.values(raw) as TeamMember[];
+    if (list.length > 0 && (list[0]?.name || list[0]?.role)) {
+      return list;
+    }
+  }
+  return DEFAULT_TEAM_MEMBERS;
+};
+
+const normalizeFaq = (raw: any): FAQItem[] => {
+  if (!raw) return DEFAULT_FAQ_ITEMS;
+  if (Array.isArray(raw) && raw.length > 0) return raw;
+  if (typeof raw === 'object' && raw !== null) {
+    const list = Object.values(raw) as FAQItem[];
+    if (list.length > 0 && list[0]?.question) {
+      return list;
+    }
+  }
+  return DEFAULT_FAQ_ITEMS;
+};
+
 export const SiteConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<SiteConfig>(() => {
     try {
@@ -269,12 +297,12 @@ export const SiteConfigProvider: React.FC<{ children: ReactNode }> = ({ children
           hero: { ...DEFAULT_SITE_CONFIG.hero, ...parsed.hero },
           video: { ...DEFAULT_SITE_CONFIG.video, ...parsed.video },
           teamSection: { ...DEFAULT_SITE_CONFIG.teamSection, ...(parsed.teamSection || {}) },
-          team: parsed.team && Array.isArray(parsed.team) && parsed.team.length > 0 ? parsed.team : DEFAULT_TEAM_MEMBERS,
+          team: normalizeTeam(parsed.team),
           contact: { ...DEFAULT_SITE_CONFIG.contact, ...parsed.contact },
           regional: { ...DEFAULT_SITE_CONFIG.regional, ...parsed.regional },
           footer: { ...DEFAULT_SITE_CONFIG.footer, ...parsed.footer },
           github: { ...DEFAULT_GITHUB_CONFIG, ...(parsed.github || {}) },
-          faq: parsed.faq && parsed.faq.length > 0 ? parsed.faq : DEFAULT_FAQ_ITEMS,
+          faq: normalizeFaq(parsed.faq),
         };
       }
     } catch (e) {
@@ -288,7 +316,7 @@ export const SiteConfigProvider: React.FC<{ children: ReactNode }> = ({ children
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     } catch (e) {
-      console.error('Failed to save CMS config', e);
+      console.warn('Não foi possível persistir no localStorage (possível limite de cota excedido):', e);
     }
   }, [config]);
 
@@ -333,14 +361,29 @@ export const SiteConfigProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
-  const updateSection = <K extends keyof SiteConfig>(section: K, data: Partial<SiteConfig[K]>) => {
-    setConfig(prev => ({
-      ...prev,
-      [section]: {
-        ...(typeof prev[section] === 'object' && prev[section] !== null ? prev[section] : {}),
-        ...data,
-      },
-    }));
+  const updateSection = <K extends keyof SiteConfig>(section: K, data: any) => {
+    setConfig(prev => {
+      // If the data is an array or the target section is an array (e.g. team, faq), replace it cleanly
+      if (Array.isArray(data) || Array.isArray(prev[section])) {
+        const arrayData = Array.isArray(data)
+          ? data
+          : (typeof data === 'object' && data !== null ? Object.values(data) : []);
+        return {
+          ...prev,
+          [section]: arrayData as SiteConfig[K],
+        };
+      }
+
+      return {
+        ...prev,
+        [section]: {
+          ...(typeof prev[section] === 'object' && prev[section] !== null && !Array.isArray(prev[section])
+            ? prev[section]
+            : {}),
+          ...data,
+        },
+      };
+    });
   };
 
   const resetToDefaults = () => {

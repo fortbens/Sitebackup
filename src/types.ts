@@ -141,6 +141,8 @@ export interface SiteConfig {
     name: string;
     descriptor: string;
     showDescriptor: boolean;
+    showLogoInHeader?: boolean;
+    showLogoInTopBar?: boolean;
     logoType: 'vector_default' | 'custom_image';
     customLogoUrl: string; // legacy fallback
     logoLightUrl: string;  // Logo Claro (para fundos escuros / rodapé / modo escuro)
@@ -160,6 +162,8 @@ export interface SiteConfig {
     bodyFont: BodyFontOption;
   };
   topBar: {
+    enabled?: boolean;
+    showLogo?: boolean;
     badgeText: string;
     announcementText: string;
     plantaoText: string;

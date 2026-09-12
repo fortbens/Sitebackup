@@ -20,12 +20,16 @@ interface TeamSectionProps {
 export const TeamSection: React.FC<TeamSectionProps> = ({ onConsultTeam }) => {
   const { config } = useSiteConfig();
 
-  if (!config.teamSection.enabled || !config.team || config.team.length === 0) {
+  const rawTeam: TeamMember[] = Array.isArray(config.team)
+    ? config.team
+    : (typeof config.team === 'object' && config.team !== null ? Object.values(config.team) : []);
+
+  if (!config.teamSection?.enabled || rawTeam.length === 0) {
     return null;
   }
 
   // Sort team members by displayOrder
-  const sortedTeam = [...config.team].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  const sortedTeam = [...rawTeam].sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
 
   const getPillarBadge = (pillar: TeamMember['pillar']) => {
     switch (pillar) {
@@ -126,6 +130,10 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onConsultTeam }) => {
                           className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                           referrerPolicy="no-referrer"
                           loading="lazy"
+                          onError={(e) => {
+                            // If custom photo fails to load, gracefully hide broken img
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-slate-800 text-white font-bold text-3xl">

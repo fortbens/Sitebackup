@@ -61,20 +61,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDiagnostic, onOpenAdmin })
         className="text-slate-200 text-xs py-2 px-4 border-b border-slate-800"
         style={{ backgroundColor: config.colors.primaryDark || '#0C1033' }}
       >
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-          <div className="flex items-center gap-2 justify-center">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-center sm:text-left">
+          <div className="flex flex-wrap items-center gap-2.5 justify-center sm:justify-start">
+            {(config.topBar?.showLogo || config.brand?.showLogoInTopBar) && (
+              <a href="#" className="flex items-center pr-3 sm:border-r border-slate-700/80 shrink-0 hover:opacity-95 transition-opacity" title="Voltar ao início">
+                <Logo variant="white" size="sm" showDescriptor={false} />
+              </a>
+            )}
             <span 
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-950"
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-950 shrink-0"
               style={{ backgroundColor: config.colors.accentYellow }}
             >
               {config.topBar.badgeText || 'FOCO REGIONAL'}
             </span>
-            <span className="flex items-center gap-1.5 text-slate-300">
+            <span className="flex items-center gap-1.5 text-slate-300 text-[11px]">
               <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               {config.topBar.announcementText}
             </span>
           </div>
-          <div className="flex items-center gap-4 text-slate-300 text-[11px]">
+          <div className="flex items-center gap-4 text-slate-300 text-[11px] shrink-0">
             <span className="hidden md:inline-flex items-center gap-1 text-emerald-400">
               <ShieldCheck className="w-3.5 h-3.5" />
               Engenharia + Jurídico + Cartório
@@ -101,9 +106,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDiagnostic, onOpenAdmin })
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <a href="#" className="flex items-center gap-2">
-            <Logo size="md" />
-          </a>
+          {config.brand?.showLogoInHeader !== false && (
+            <a href="#" className="flex items-center gap-2">
+              <Logo size="md" />
+            </a>
+          )}
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-5 xl:gap-7">

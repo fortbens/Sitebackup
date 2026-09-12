@@ -18,10 +18,12 @@ import {
   CheckCircle2, 
   AlertCircle,
   Sparkles,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Loader2
 } from 'lucide-react';
 import { useSiteConfig } from '../../context/SiteConfigContext';
 import { TeamMember } from '../../types';
+import { compressImage } from '../../utils/imageUtils';
 
 import photoCarlos from '../../assets/images/team_lawyer_carlos_1789239401585.jpg';
 import photoGabriela from '../../assets/images/team_engineer_gabriela_1789239411935.jpg';
@@ -40,8 +42,12 @@ export const TeamManagerTab: React.FC = () => {
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
 
-  const team = config.team || [];
+  // Safe team array extraction to avoid "is not iterable" or "map is not a function"
+  const team: TeamMember[] = Array.isArray(config.team)
+    ? config.team
+    : (typeof config.team === 'object' && config.team !== null ? Object.values(config.team) : []);
 
   const triggerNotification = (msg: string) => {
     setNotification(msg);
@@ -85,18 +91,23 @@ export const TeamManagerTab: React.FC = () => {
       return;
     }
 
-    let updatedTeam: TeamMember[];
-    if (isAddingMember) {
-      updatedTeam = [...team, editingMember];
-      triggerNotification('Novo especialista adicionado à equipe com sucesso!');
-    } else {
-      updatedTeam = team.map((m) => (m.id === editingMember.id ? editingMember : m));
-      triggerNotification('Dados do especialista atualizados com sucesso!');
-    }
+    try {
+      let updatedTeam: TeamMember[];
+      if (isAddingMember) {
+        updatedTeam = [...team, editingMember];
+        triggerNotification('Novo especialista adicionado à equipe com sucesso!');
+      } else {
+        updatedTeam = team.map((m) => (m.id === editingMember.id ? editingMember : m));
+        triggerNotification('Dados do especialista e foto atualizados com sucesso!');
+      }
 
-    updateSection('team', updatedTeam);
-    setEditingMember(null);
-    setIsAddingMember(false);
+      updateSection('team', updatedTeam);
+      setEditingMember(null);
+      setIsAddingMember(false);
+    } catch (err) {
+      console.error('Erro ao salvar especialista:', err);
+      alert('Houve um erro ao atualizar os especialistas. Tente novamente.');
+    }
   };
 
   const handleDeleteMember = (id: string) => {
@@ -123,23 +134,35 @@ export const TeamManagerTab: React.FC = () => {
     triggerNotification('Ordem dos especialistas atualizada.');
   };
 
-  const handlePhotoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !editingMember) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('A imagem deve possuir no máximo 2MB.');
-      return;
+    setIsCompressingPhoto(true);
+    try {
+      // Automatically resize and compress image to keep it lightweight (~30-60KB)
+      // preventing localStorage quota exceeded and browser white screen crash
+      const compressedDataUrl = await compressImage(file, {
+        maxWidth: 600,
+        maxHeight: 600,
+        quality: 0.85,
+        mimeType: 'image/jpeg',
+      });
+
+      setEditingMember({
+        ...editingMember,
+        photoUrl: compressedDataUrl,
+      });
+
+      triggerNotification('Foto carregada e otimizada com sucesso!');
+    } catch (err: any) {
+      console.error('Falha ao processar foto:', err);
+      alert(err.message || 'Erro ao carregar e comprimir a imagem. Selecione um arquivo JPG ou PNG válido.');
+    } finally {
+      setIsCompressingPhoto(false);
+      // Reset input value so re-selecting the same file fires change event
+      e.target.value = '';
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result && editingMember) {
-        setEditingMember({ ...editingMember, photoUrl: result });
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const getPillarColor = (pillar: TeamMember['pillar']) => {
@@ -401,13 +424,21 @@ export const TeamManagerTab: React.FC = () => {
                 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   {/* Photo Preview */}
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-sm shrink-0 bg-slate-200">
-                    {editingMember.photoUrl ? (
+                  <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-sm shrink-0 bg-slate-200">
+                    {isCompressingPhoto ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/80 text-white gap-1 text-[10px]">
+                        <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+                        <span>Otimizando...</span>
+                      </div>
+                    ) : editingMember.photoUrl ? (
                       <img
                         src={editingMember.photoUrl}
                         alt="Preview"
                         className="w-full h-full object-cover object-center"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = photoCarlos;
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-400">
@@ -418,17 +449,32 @@ export const TeamManagerTab: React.FC = () => {
 
                   {/* Upload or Preset Options */}
                   <div className="flex-1 space-y-2 w-full">
-                    <div className="flex items-center gap-2">
-                      <label className="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-2xs">
-                        <Upload className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Carregar Foto (PNG/JPG)</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className={`px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-opacity ${isCompressingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                        {isCompressingPhoto ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5 text-amber-600" />
+                        )}
+                        <span>{isCompressingPhoto ? 'Comprimindo foto...' : 'Carregar Foto do Computador/Celular'}</span>
                         <input
                           type="file"
                           accept="image/*"
                           onChange={handlePhotoFileUpload}
+                          disabled={isCompressingPhoto}
                           className="hidden"
                         />
                       </label>
+
+                      {editingMember.photoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingMember({ ...editingMember, photoUrl: '' })}
+                          className="px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl cursor-pointer"
+                        >
+                          Remover Foto
+                        </button>
+                      )}
                     </div>
 
                     <div className="text-[11px] text-slate-500">
